@@ -205,6 +205,7 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 
 				locationData : {
 					complete : false,
+					data     : {},
 					errorMsg : ""
 				},
 
@@ -341,6 +342,55 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 			}
 		},
 
+		{// : Location Selection (live) :
+
+			nodes : {
+				userLocSelection : ".userLocSelection"
+			},
+
+			cfg : {
+				locSelectHandle : ".HI_Location"
+			},
+
+			tmpl : [
+				"<div>",
+					"<h2>Selected Location:</h2>",
+					"{{html}}",
+				"</div>"
+			].join(""),
+
+			init : function () {
+				var that = this;
+
+				if ( !this.cluster.util.createJNodes( this.nodes ) ) return;
+
+				this.checkpoint = this.cluster.CHECKPOINT.required.locationData;
+
+				this._sub("active_selection", function( data ){
+					that.activeData = data;
+					that.updateCheckPoint();
+					that.renderSelection();
+				});
+			},	
+
+			updateCheckPoint : function () {
+				this.checkpoint.complete = true;
+				this.checkpoint.data = this.activeData;
+			},
+
+			renderSelection : function () {
+				var
+				html = this.cluster.util.generateView( this.tmpl, { html :  this.activeData.html } );
+
+				html = $( html );
+
+				html.find( this.cfg.locSelectHandle ).hide();
+
+				this.nodes.userLocSelection.html( html );
+			}
+
+		},
+
 
 		{// : Color-Box Modal for displaying query results with user events:
 
@@ -351,7 +401,8 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 			cfg : {
 				locClassKey : "loc_class",
 				locClass    : "HI_Location",
-				franchiseNumKey : "franchisenumkey"
+				franchiseNumKey : "franchisenumkey",
+				recordLookupKey : "record"
 			},
 
 			tmpl : [
@@ -360,7 +411,7 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 					"<span>{{address1}}</span> <br />",
 					"<span>{{city}}, {{state}} {{zip}}</span> <br />",
 					"<span>{{phone}}</span> <br />",
-					"<span style='width:40px; height20px; background:green; cursor:pointer;' data-{{franchisenumkey}}='{{franchiseNum}}' class='{{loc_class}}'>Select This Location</span>",
+					"<span style='width:40px; height20px; background:green; cursor:pointer;' data-{{record}}={{recordIdx}} data-{{franchisenumkey}}='{{franchiseNum}}' class='{{loc_class}}'>Select This Location</span>",
 				"</div>"
 			].join(""),
 
@@ -384,12 +435,11 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 
 				$("body").on("click", "."+this.cfg.locClass, function(){
 					var 
-					$this = $( this ),
-					franchiseNum = $this.data( that.cfg.franchiseNumKey );
+					record = that.activeData[ parseInt( $( this ).data( that.cfg.recordLookupKey ), 10 ) ];
 
-					// pick up from here!!!!
-					console.log(franchiseNum);
-				})
+					that.selectLocation( record );
+					
+				});
 			},
 
 			build : function () {
@@ -399,16 +449,21 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 				locClassKey = cfg.locClassKey,
 				locClass    = cfg.locClass,
 				franchiseKey = cfg.franchiseNumKey,
+				recordLookupKey = cfg.recordLookupKey,
 				html        = "", i, l, 
 				createView  = this.cluster.util.generateView, tmpl = this.tmpl;
 
 				i = 0;
 				l = data.length;
 				for ( ; i < l; i += 1 ) {
-					data[i][locClassKey] = locClass;
-					data[i][franchiseKey] = franchiseKey;
 
-					html += createView( tmpl, data[i] );
+					data[i][locClassKey]     = locClass;
+					data[i][franchiseKey]    = franchiseKey;
+					data[i][recordLookupKey] = recordLookupKey;
+					data[i]["recordIdx"]     = i.toString();
+					data[i].html             = createView( tmpl, data[i] );
+
+					html += data[i].html;
 				}
 
 				this.activeHTML = html;
@@ -420,8 +475,10 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 				})
 			},
 
-			selectLocation : function () {
-
+			selectLocation : function ( record ) {
+				this.activeSelection = record;
+				this._pub("active_selection", record);
+				$.colorbox.close();
 			}	
 
 		},
