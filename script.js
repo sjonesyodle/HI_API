@@ -344,20 +344,23 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 
 		{// : Color-Box Modal for displaying query results with user events:
 
-
 			nodes : {
-
 				displayLoc : ".userLocation"
+			},
 
+			cfg : {
+				locClassKey : "loc_class",
+				locClass    : "HI_Location",
+				franchiseNumKey : "franchisenumkey"
 			},
 
 			tmpl : [
-				"<div class='HI_Location' data-franchisenum='{{franchiseNum}}' style='background:#666;padding:10px;margin: 10px auto'>",
+				"<div style='background:#666;padding:10px;margin: 10px auto'>",
 					"<span>{{franchiseName}}</span> <br />",
 					"<span>{{address1}}</span> <br />",
 					"<span>{{city}}, {{state}} {{zip}}</span> <br />",
 					"<span>{{phone}}</span> <br />",
-					"<span style='width:40px; height20px; background:green; cursor:pointer;' class='locSelect'>Select This Location</span>",
+					"<span style='width:40px; height20px; background:green; cursor:pointer;' data-{{franchisenumkey}}='{{franchiseNum}}' class='{{loc_class}}'>Select This Location</span>",
 				"</div>"
 			].join(""),
 
@@ -377,18 +380,34 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 			},
 
 			bind : function () {
+				var that = this;
 
+				$("body").on("click", "."+this.cfg.locClass, function(){
+					var 
+					$this = $( this ),
+					franchiseNum = $this.data( that.cfg.franchiseNumKey );
+
+					// pick up from here!!!!
+					console.log(franchiseNum);
+				})
 			},
 
 			build : function () {
 				var
-				data = this.activeData,
-				html = "", i, l, 
-				createView = this.cluster.util.generateView, tmpl = this.tmpl;
+				cfg         = this.cfg,
+				data        = this.activeData,
+				locClassKey = cfg.locClassKey,
+				locClass    = cfg.locClass,
+				franchiseKey = cfg.franchiseNumKey,
+				html        = "", i, l, 
+				createView  = this.cluster.util.generateView, tmpl = this.tmpl;
 
 				i = 0;
 				l = data.length;
 				for ( ; i < l; i += 1 ) {
+					data[i][locClassKey] = locClass;
+					data[i][franchiseKey] = franchiseKey;
+
 					html += createView( tmpl, data[i] );
 				}
 
