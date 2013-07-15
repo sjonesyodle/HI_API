@@ -19,6 +19,35 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
                 return node && node.length > 0;
             },
 
+            queryStrAsObj: (function () {
+	            var match,
+	                pl = /\+/g,
+	                search = /([^&=]+)=?([^&]*)/g,
+	                decode = function (s) {
+	                    return decodeURIComponent(s.replace(pl, " "));
+	                },
+	                query = window.location.search.slice(1),
+	                o = {};
+
+	            return function (query) {
+	                var res = {},
+	                    startPos;
+
+	                query = query || window.location.href;
+	                startPos = (query.indexOf("?") + 1);
+
+	                if (startPos > -1) {
+	                    query = query.slice(startPos);
+
+	                    while (match = search.exec(query)) {
+	                        res[decode(match[1])] = decode(match[2]);
+	                    }
+	                }
+
+	                return res;
+	            };
+	        }()),
+
             createJNodes: function (nodeObj, subObjProp) {
                 var prop, curr;
 
@@ -206,11 +235,12 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 				locationData : {
 					complete : false,
 					data     : {},
-					errorMsg : ""
+					error    : "Please select a location from 'tab 1'"
 				},
 
 				userData : {
-					complete : false
+					complete : false,
+					data     : {}
 				}	
 			},
 
@@ -228,6 +258,7 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 		
 		// ::::::: U(I/X) MODULES :::::::
 
+		//--------------------------
 		{// : Build Tabs :
 
 			rootNode : "#HI_Location_Widget",
@@ -341,7 +372,10 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 				});
 			}
 		},
+		//--------------------------
 
+
+		//--------------------------
 		{// : Location Selection (live) :
 
 			nodes : {
@@ -390,8 +424,10 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 			}
 
 		},
+		//--------------------------
 
 
+		//--------------------------
 		{// : Color-Box Modal for displaying query results with user events:
 
 			nodes : {
@@ -482,21 +518,79 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 			}	
 
 		},
+		//--------------------------
 
+
+		//--------------------------
 		{// : Form Defender Config :
 
-			init : function () {
+			elems : {
+				"firstname"   : "string, Enter Your First Name",
+				"lastname"    : "string, Enter Your Last Night",
+				"phonenumber" : "phone, Invalid Phone #",
+				"email"       : "email, Invalid Email"
+			},
 
+			submitBtn : ".sendInquiry",
+
+			form : $(".HI_userData"),
+
+			init : function () {
+				var that = this;
+
+				this.form
+				.formDefender({
+					elems : {
+						required  : this.elems,
+						submitBtn : this.submitBtn
+					},
+
+					debug        : true,
+					alertMsg     : false,
+					placeHolders : false,
+					submitAction : "/nowhere",
+					errorCSS     : ".error",
+					successCSS   : ".success",
+
+					beforeSubmit : [
+						function ( form ) {
+							var 
+							data = that.cluster.util.queryStrAsObj( form.serialize() );
+
+							data["emailsignup"] = data["emailsignup"] ? "true" : "false";
+
+							that.payLoadRequest({
+								userData : data
+							});
+
+							return false;
+						}
+					]
+
+				});	
+			},
+
+			payLoadRequest : function ( userData ) {
+				var checkpoint = this.cluster.CHECKPOINT.required.userData;
+
+				checkpoint.data     = userData;
+				checkpoint.complete = true;
+
+				this._pub("Final_Payload_Request"); // send to mediator
 			}
 
 		},
+		//--------------------------
+
 
 		// ::::::: API MODULES :::::::
 
+		//--------------------------
 		{ // : Query HI API with Location Data
 
 			state : {
-				activeSearch : null
+				activeSearch : null,
+				negativeMsg  : false 
 			},
 
 			cfg : {
@@ -507,6 +601,11 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 			nodes : {
 				searchInput : ".HI_search",
 				searchBtn : ".HI_doSearch"
+			},
+
+			msgs : {
+				searchTypeError : "Invalid Search",
+				noYieldMsg      : "No locations found"
 			},
 
 			init : function () {
@@ -526,12 +625,11 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 						var $this = this;
 						this.on({
 
-							mouseenter : function () {
-
-							},
-
-							mouseleave : function () {
-
+							focus : function () {
+								if ( that.state.negativeMsg ) {
+									$this.val("");
+									that.updateNegativeMsg( false );
+								}
 							}
 
 						})
@@ -559,9 +657,18 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 
 			validateQuery : function () {
 				var
-				q = this.state.activeSearch, 
-				validate = this.util.validate;
-				return ( validate( q, "zip" ) || validate( q, "postal" ) );
+				that     = this, 
+				q        = this.state.activeSearch, 
+				validate = this.util.validate,
+				test     = ( validate( q, "zip" ) || validate( q, "postal" ) );
+
+				if ( !test ) {
+					setTimeout(function(){
+						that.searchError();
+					}, 0);	
+				}
+
+				return test;
 			},
 
 			queryAPI : function () {
@@ -573,10 +680,6 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 				});
 			},
 
-			noYield : function () {
-				alert("no results");
-			},
-			
 			parseResponse : function ( response ) {
 
 				if ( !( response && response.length > 0 ) ) {
@@ -585,8 +688,75 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 				}
 
 				this._pub("location_results_updated", response);
+			},
+
+			searchError : function () {
+				this.nodes.searchInput.val( this.msgs.searchTypeError );
+				this.updateNegativeMsg( true );
+			},
+
+			noYield : function () {
+				this.nodes.searchInput.val( this.msgs.noYieldMsg );
+				this.updateNegativeMsg( true );
+			},
+
+			updateNegativeMsg : function ( bool ) {
+				this.state.negativeMsg = bool || false;
 			}
+			
+		},
+		//--------------------------
+
+		//--------------------------
+		{//: Payload Validation Mediator :
+
+			init : function () {
+				var that = this;
+
+				this._sub("Final_Payload_Request", function (){
+
+				});
+			},
+
+			validate : function () {
+
+			},
+
+			success : function () {
+
+			},
+
+			failure : function () {
+
+			}
+
+		},
+		//--------------------------
+
+		//--------------------------
+		{// : Transmit Final (Validated) Payload 
+
+			cfg : {
+
+			},
+
+			init : function () {
+				var that = this;
+
+				// this._sub("")
+
+			},
+
+			transmitPayload : function () {
+
+			},
+
+			complete : function () {
+
+			}
+
 		}
+		//--------------------------
 
 	]);
 
