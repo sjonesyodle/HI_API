@@ -1,0 +1,325 @@
+Object.create=Object.create?Object.create:function(){var e=function(){};return function(f){e.prototype=f;return new e}}();Object.extend=Object.extend?Object.extend:function(){var e;return function(f,g){for(e in g)f[e]=g[e];return f}}();
+(function(e,f,g){var h,k;k=function(){var e={Pub:function(a,c){var d=this;if(!this.topics[a])return!1;setTimeout(function(){for(var b=d.topics[a],e=b?b.length:0;e--;)b[e].func.apply(b[e].funcContext,[c])},0);return!0},Sub:function(a,c,d){var b;this.topics[a]||(this.topics[a]=[]);b=(++this.subUid).toString();this.topics[a].push({token:b,func:c,funcContext:d});return b},unSub:function(a){var c,d,b;for(c in this.topics)if(this.topics[c])for(d=0,b=this.topics[c].length;d<b;d++)if(this.topics[c][d].token===
+a)return this.topics[c].splice(d,1),a;return!1}};return function(){var a=Object.create(e);a.subUid=-1;a.topics={};return a}}();h=function(){var e={_destroy:function(){delete this._context.mods[this.uid]},_pubsub:function(){var a=this,c=a._context._PubSub,d=Array.prototype.slice;return{_pub:function(){var b=d.call(arguments);b.push(a);return c.Pub.apply(c,b)},_sub:function(){var b=d.call(arguments);b.push(a);return c.Sub.apply(c,b)},_unsub:function(){var a=d.call(arguments);return c.unSub.apply(c,
+a)}}}};return function(a,c,d){var b=Object.create(e);b._context=a;b.uid=d;b.cluster=a.enhancements;Object.extend(b,b._pubsub());return Object.extend(b,c)}}();f=function(){var e={collect:function(a){var c=this._Module,d,b;if(a)if(d=-1,b=a&&a.length?a.length:!1)for(;++d<b;)this.mods[++c.uid]=c.create(this,a[d],c.uid);else return this.mods[++c.uid]=c.create(this,a,c.uid),this},enhance:function(a){"object"===typeof a&&Object.extend(this.enhancements,a)},start:function(){for(var a in this.mods)"init"in
+this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.create(e);a.mods={};a.enhancements={};Object.extend(a,{_Module:{create:h,uid:-1},_PubSub:k()});return a}}();e.Cluster=f})(window,document);
+
+
+;(function( $, window, undefined ){
+
+	var HI_LOC_WIDGET = Cluster(), trim = $.trim;
+
+
+	HI_LOC_WIDGET
+	.enhance({
+
+		util : {
+			isNode: function (jNode) {
+                var node = typeof jNode === "string" ? $(trim(jNode)) : jNode;
+                return node && node.length > 0;
+            },
+
+            createJNodes: function (nodeObj, subObjProp) {
+                var prop, curr;
+
+                if (typeof nodeObj !== "object") return false;
+
+                if (subObjProp) subObjProp = trim(subObjProp);
+
+                for (prop in nodeObj) {
+                    prop = trim(prop);
+
+                    if (subObjProp && typeof nodeObj[prop] == "object") {
+
+                        if (!nodeObj[prop].hasOwnProperty(subObjProp)) return false;
+
+                        curr = nodeObj[prop][subObjProp] = $(nodeObj[prop][subObjProp]);
+
+                    } else curr = nodeObj[prop] = $(nodeObj[prop]);
+
+                    if (!this.isNode(curr)) return false;
+                }
+
+                return true;
+            },
+
+            utcNum: function () {
+                var uts = new Date().getTime().toString();
+                return uts.slice(uts.length - 9, uts.length - 1);
+            },
+
+            validate : (function(){
+                var lib = {
+                    zip : /^\d{5}([\-]\d{4})?$/,
+                    postal : /^[ABCEGHJKLMNPRSTVXY]\d[ABCEGHJKLMNPRSTVWXYZ]( )?\d[ABCEGHJKLMNPRSTVWXYZ]\d$/
+                };
+
+                return function ( val, regex ) {
+                	regex = trim( regex );
+               		return regex in lib ? lib[regex].test(val) : false;
+                };
+            }())
+		},
+
+		CHECKPOINT : {
+
+			required : {
+
+				locationData : {
+					complete : false,
+					errorMsg : ""
+				},
+
+				userData : {
+					complete : false
+				}	
+			},
+
+			check : function () {
+				// loop through required
+			}
+
+		}
+
+	});
+
+
+	HI_LOC_WIDGET
+	.collect([
+		
+		// ::::::: U(I/X) MODULES :::::::
+
+		{// : Build Tabs :
+
+			rootNode : "#HI_Location_Widget",
+
+			cfg : {
+				tabs         : ".tab",
+				tabTitle     : "title",
+				tabBtnRoot   : "tabBtns",
+				activeClass  : "active",
+
+				startTab : 0
+			},
+				
+			init : function () {
+				this.util = this.cluster.util;
+
+				if ( !this.util.isNode( this.rootNode ) ) return;
+
+				this.assemble();
+				this._destroy();
+			},
+
+			assemble : function () {
+				this.assembling = true;
+
+				this.buildTabs();
+
+				this.createTabBtns();
+
+				this.bindings();
+			},
+
+			buildTabs : function () {
+				var 
+				cfg  = this.cfg,
+				tabs = [];
+
+				cfg.tabs = $(cfg.tabs);
+
+				if ( !this.util.isNode( cfg.tabs ) ) {
+					this.assembling = false;
+					return;
+				}
+
+				cfg.tabs.each(function(){
+					var $this = $(this);
+
+					tabs.push({
+						node  : $this,
+						title : trim( $this.data( cfg.tabTitle ) )
+					});
+
+				});
+
+				cfg.tabs = tabs;
+
+				cfg.tabs[ cfg.startTab ].node
+				.css("display", "block").addClass( cfg.activeClass );
+
+			},
+
+			createTabBtns : function () {
+				var 
+				cfg      = this.cfg, 
+				tabs     = cfg.tabs, i, l,
+				listFrag = $("<ul />"), titles = "";
+
+				if ( !this.assembling) return;
+
+				i = 0;
+				l = tabs.length;
+				for ( ; i < l; i += 1 ) {
+					titles += "<li>" + tabs[i].title + "</li>";
+				}
+
+				listFrag
+				.addClass( cfg.tabBtnRoot ).html( titles )
+				.prependTo( this.rootNode );
+
+				cfg.tabBtnRoot = $( "." + cfg.tabBtnRoot );
+
+				this.tabsBtns = cfg.tabBtnRoot.find("li");
+				this.tabsBtns.eq( cfg.startTab ).addClass( cfg.activeClass );
+			},
+
+			bindings : function () {
+				var 
+				that   = this,
+				cfg    = this.cfg,
+				active = cfg.activeClass,
+				tabs   = cfg.tabs;
+
+				this.cfg.tabBtnRoot.on("click", "li", function(){	
+					var
+					$this = $( this ),
+					$this_idx, currActiveBtn, currActive_idx;
+
+					if ( $this.hasClass( active ) ) return;
+
+					$this_idx  = $this.index();
+
+					currActiveBtn  = $this.parent().find( "." + active );
+					currActive_idx = currActiveBtn.index();
+
+					$this.addClass( active );
+					currActiveBtn.removeClass( active );
+
+					tabs[ currActive_idx ].node.hide();
+					tabs[ $this_idx ].node.show();
+
+				});
+			}
+		},
+
+
+		{// : Color-Box Modal for Selecting Locations :
+
+			init : function () {
+
+			}
+
+		},
+
+		{// : Form Defender Config :
+
+			init : function () {
+
+			}
+
+		},
+
+		// ::::::: API MODULES :::::::
+
+		{ // : Query HI API with Location Data
+
+			state : {
+				activeSearch : null
+			},
+
+			cfg : {
+				searchKey      : "{{query}}",
+				api_controller : "http://qa.svc.homeinstead.com/search/FranchiseLocator/{{query}}/jsonp?callback=?"
+			},
+
+			nodes : {
+				searchInput : ".HI_search",
+				searchBtn : ".HI_doSearch"
+			},
+
+			init : function () {
+				this.util = this.cluster.util;
+
+				if ( !this.util.createJNodes( this.nodes ) ) return;
+
+				this.bind();
+			},
+
+			bind : function () {
+				var that = this, i, bindings, nodes = this.nodes;
+
+				bindings = {
+
+					searchInput : function () {
+						var $this = this;
+						this.on({
+
+							mouseenter : function () {
+
+							},
+
+							mouseleave : function () {
+
+							}
+
+						})
+					},
+
+					searchBtn : function () {
+						this.on({
+							click : function ( e ) {
+								that.state.activeSearch = trim( nodes.searchInput.val() );
+								( that.validateQuery() && that.queryAPI() );
+								e.preventDefault();
+							}
+						});
+					}
+
+				};
+
+				for ( i in bindings ) {
+					if ( i in this.nodes ) {
+						bindings[i].call( this.nodes[i] );
+					}
+				}
+
+			},
+
+			validateQuery : function () {
+				var
+				q = this.state.activeSearch, 
+				validate = this.util.validate;
+				return ( validate( q, "zip" ) || validate( q, "postal" ) );
+			},
+
+			queryAPI : function () {
+				var
+				that = this, 
+				q = this.cfg.api_controller.replace( this.cfg.searchKey, this.state.activeSearch );
+				$.getJSON( q, function( data ){
+					that.parseResponse( data );
+				});
+			},
+
+			noYield : function () {
+				alert("no results");
+			},
+			
+			parseResponse : function ( response ) {
+
+				if ( !( response && response.length > 0 ) ) {
+					this.noYield();
+					return;
+				}
+
+				this._pub("location_results_updated", response);
+			}
+		}
+
+	]);
+
+	HI_LOC_WIDGET.start();
+
+}( jQuery, window ));
+
