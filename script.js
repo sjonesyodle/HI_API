@@ -19,6 +19,20 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
                 return node && node.length > 0;
             },
 
+            obj2QueryStr : function (obj) {
+				var p, res = "";
+
+				if ($.isEmptyObject(obj)) return "";
+
+				for (p in obj) {
+
+					if (!obj.hasOwnProperty(p)) continue;
+						res += $.trim(p)+"="+escape( $.trim(obj[p]) )+"&";
+					}
+
+				return res.slice(0, -1);
+			},
+
             queryStrAsObj: (function () {
 	            var match,
 	                pl = /\+/g,
@@ -268,8 +282,7 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 				tabTitle     : "title",
 				tabBtnRoot   : "tabBtns",
 				activeClass  : "active",
-
-				startTab : 0
+				startTab     : 0
 			},
 				
 			init : function () {
@@ -363,7 +376,7 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 					currActiveBtn  = $this.parent().find( "." + active );
 					currActive_idx = currActiveBtn.index();
 
-					$this.addClass( active );
+					$this.addClass( active );-
 					currActiveBtn.removeClass( active );
 
 					tabs[ currActive_idx ].node.hide();
@@ -373,6 +386,72 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 			}
 		},
 		//--------------------------
+
+		{// : Tab State :
+
+			cfg : {
+				onLoadTabLockIndxs : [ 1 ]
+			},
+
+			nodes : {
+				tabs : ".tabBtns li"
+			},
+
+			init : function () {
+				var 
+				that = this,
+				util = this.cluster.util;
+
+				if ( !util.createJNodes( this.nodes ) ) return;
+
+				this.onLoadState();
+
+				this._sub("unlock_all_tabs", this.unlockAll);
+				this._sub("changeTab", function( tabIdx ){
+					that.changeTab( tabIdx );
+				});
+
+			},
+
+			onLoadState : function () {
+				var
+				that  = this, 
+				nodes = this.nodes.tabs;
+
+				//lock desired tabs on load
+				(function(){
+					var 
+					i, l, 
+					cfg = that.cfg,
+					locks = cfg.onLoadTabLockIndxs;
+
+					i = 0;
+					l = locks.length;
+					for ( ; i < l; i++ ) {
+						that.lock( nodes.eq( locks[i] ) );
+					}
+
+				}());
+			},
+
+			lock : function ( node ) {
+				node.on("click", function( e ){
+					e.stopImmediatePropagation();
+					e.preventDefault();
+				});
+			},
+
+			unlockAll : function () {
+				this.nodes.tabs.each(function(){
+					$(this).off("click");
+				});
+			},
+
+			changeTab : function ( tabIdx ) {
+				this.nodes.tabs.eq( tabIdx ).trigger("click");
+			}
+
+		},
 
 
 		//--------------------------
@@ -404,6 +483,7 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 					that.activeData = data;
 					that.updateCheckPoint();
 					that.renderSelection();
+					that.complete();
 				});
 			},	
 
@@ -415,12 +495,14 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 			renderSelection : function () {
 				var
 				html = this.cluster.util.generateView( this.tmpl, { html :  this.activeData.html } );
-
 				html = $( html );
-
 				html.find( this.cfg.locSelectHandle ).hide();
-
 				this.nodes.userLocSelection.html( html );
+			},
+
+			complete : function () {
+				this._pub("unlock_all_tabs");
+				this._pub("changeTab", 1);
 			}
 
 		},
@@ -455,6 +537,8 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 				var that = this;
 
 				this.bind();
+
+				this.checkpoint = this.cluster.CHECKPOINT.required.locationData;
 
 				this._sub("location_results_updated", function( data ){
 
@@ -545,7 +629,7 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 						submitBtn : this.submitBtn
 					},
 
-					debug        : true,
+					debug        : false,
 					alertMsg     : false,
 					placeHolders : false,
 					submitAction : "/nowhere",
@@ -710,44 +794,150 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 		//--------------------------
 		{//: Payload Validation Mediator :
 
+			tmpl : {
+
+				error : [
+					"<div>{{error}}</div>"
+				].join("")
+
+			},
+
 			init : function () {
 				var that = this;
 
-				this._sub("Final_Payload_Request", function (){
+				this.checkpoint = this.cluster.CHECKPOINT.required;
 
+
+				this._sub("Final_Payload_Request", function (){
+					that.validate();
 				});
 			},
 
 			validate : function () {
+				var i, msgs = "";
 
+				for ( i in this.checkpoint ) {
+					if ( !this.checkpoint[i].complete ) {
+						( this.checkpoint[i].error && (msgs += this.checkpoint[i].error) );
+					}
+				}
+
+				if ( msgs.length > 0 ) this.failure( msgs );
+				else this.success();
 			},
 
 			success : function () {
-
+				this._pub("Final_Payload_Request_VALID");
 			},
 
-			failure : function () {
-
+			failure : function ( msgs ) {
+				var msg = this.cluster.util.generateView( this.tmpl.error, { error : msgs })
+				$.colorbox({ html : msg });
 			}
 
 		},
 		//--------------------------
 
+
 		//--------------------------
 		{// : Transmit Final (Validated) Payload 
 
 			cfg : {
+				franchiseNumKey : "{{franchisenumber}}",
+				wakeUpURI  : "http://qa.svc.homeinstead.com/ServiceInquiry/KeepAlive/{{franchisenumber}}/",
+				serviceURI : "http://qa.svc.homeinstead.com/api/ServiceInquiry/1/"
+			},
 
+			package : {
+                "inquiry": "null",
+                "FranchiseNumber": { alias : "franchiseNum" },
+                "ContactFirstName": { alias : "firstname" },
+                "ContactLastName": { alias : "lastname" },
+                "ContactPhone": { alias : "phonenumber" },
+                "ContactPhoneType": "",
+                "ContactBestTimeToCall": "",
+                "ContactEmail": { alias : "email" },
+                "ContactRelationshipWithClient": "",
+                "ClientFirstName": "",
+                "ClientLastName": "",
+                "ClientAddress": "",
+                "ClientCity": "",
+                "ClientState": "",
+                "ClientZip": "",
+                "ClientCondition": "",
+                "ClientStartService": "",
+                "HearAboutUs": "Web",
+                "HearAboutUsOther": "Service Inquiry Web Service",
+                "MailInformation": { alias : "emailsignup" },
+                "MailInfoFirstName": "",
+                "MailInfoLastName": "",
+                "MailInfoAddress1": "",
+                "MailInfoAddress2": "",
+                "MailInfoCity": "",
+                "MailInfoState": "",
+                "MailInfoZip": "",
+                "SendAutoEmail": "true",
+                "SourceURL": location.protocol + "//" + location.host + location.pathname
 			},
 
 			init : function () {
-				var that = this;
+				var 
+				that         = this,
+				checkpoint   = that.cluster.CHECKPOINT.required;
 
-				// this._sub("")
+				this._sub("Final_Payload_Request_VALID", function (){
+					that.userData      = checkpoint.userData.data.userData;
+					that.locationData  = checkpoint.userData.data;
 
+					that.prepare();
+
+					$(document).ajaxStart(function() {
+						console.log("ajax");
+					});
+
+					that.wakeUpService();
+					that.transmitPayload();
+				});
+			},
+
+			prepare : function () {
+				var
+				package = this.package,
+				merge   = [ this.userData, this.locationData ],
+				i, p, l, payLoad = {};
+
+				i = 0;
+				l = merge.length;
+				for ( ; i < l; i += 1 ) {
+					for ( p in package ) {
+						if ( !!package[p] && (typeof package[p] === "object") && ("alias" in package[p]) ) {
+							if ( package[p].alias in merge[i] ) {
+								payLoad[p] = merge[i][package[p].alias];
+							}
+						}
+						else payLoad[p] = package[p];
+					}
+				}
+
+				this.package = payLoad;
+			},
+
+			wakeUpService : function () {
+				var wakeUpURI = this.cfg.wakeUpURI.replace( this.cfg.franchiseNumKey, trim(this.locationData.franchiseNum));
+				$.getJSON( trim( wakeUpURI ), function ( data ) { /*void*/ });
 			},
 
 			transmitPayload : function () {
+				
+				// $.ajax({
+				// 	url      : "http://qa.svc.homeinstead.com/api/ServiceInquiry/1/?callback=?",
+				// 	type     : 'GET',
+				// 	dataType : 'jsonp',
+				// 	jsonp    : "somecallback",
+				// 	success  : function ( res ) {
+				// 		console.log(res);
+				// 	}
+				// });
 
 			},
 
@@ -761,6 +951,9 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 	]);
 
 	HI_LOC_WIDGET.start();
+
+
+	//error
 
 }( jQuery, window ));
 
