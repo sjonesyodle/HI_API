@@ -1,0 +1,18 @@
+.dropmenudiv{
+	position: absolute;
+	top: 0; z-index: 100;
+	visibility: hidden;
+	margin: 0;
+	padding: 0;
+}
+.dropmenudiv li {
+}
+.dropmenudiv li:hover {
+}
+.dropmenudiv li a {
+	display: block;
+	text-decoration: none;
+}
+.dropmenudiv li a:hover {
+	display: block;
+}

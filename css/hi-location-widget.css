@@ -1,0 +1,61 @@
+.error { background: #FFEEEE !important; border: 1px solid red !important; color: red !important; }
+#HI_Location_Widget { position: relative; margin: 38px 0 0; }
+
+		#HI_Location_Widget .tab {
+			display : none;
+			width      : 100%;
+			margin     : 0;
+			padding    : 0;
+			clear      : both;
+		}
+
+		#HI_Location_Widget .tabBtns {
+			position: absolute; left: 1px; top: -38px;
+		}
+
+		#HI_Location_Widget .tabBtns li {
+			background : #AB0059;
+			float      : left;
+			list-style : none;
+			cursor     : pointer;
+			text-align : center;
+			padding    : 5px 10px; 
+			color: #FFF; 
+		}
+		#HI_Location_Widget .tabBtns .active {
+			background : #CE2D8E;
+		}
+		#HI_Location_Widget .prevTab { clear: both; border-bottom: 1px solid #560039; display: block; text-align: right; color: #FFF; }
+		#HI_Location_Widget .tab:first-child .contact-form { border: 0; padding: 0; }
+		#HI_Location_Widget label { color: #FFF; }
+		#HI_Location_Widget label.small { font-size: 12px; line-height: 1.2em; margin: 10px 0; padding: 0 0 0 20px; }
+		#HI_Location_Widget input[type="checkbox"] { float: left; width: auto; margin: 0 5px 0 0; }
+		.wrap { width: 600px; }
+		.location {
+			position: relative;
+			float: left;
+			border: 1px solid #DDD;
+			background:#EEE;
+			width: 268px; height: 175px; margin: 5px; padding: 10px;
+			overflow: hidden; }
+			.location:hover { border-color: #621d50; background: #efe8ed; }
+			.location h3 { font-weight: bold; font-size: 16px; line-height: 1.1em; color: #621d50; margin: 0 0 10px; }
+			.location p { line-height: 1.4em; }
+			.location .phone { font-weight: bold; color: #621d50; }
+			.location .select { display: inline-block; background: #AB0059; color: #FFF; margin: 10px 0 0; padding: 5px 10px; }
+				.location:hover .select { background: #CE2D8E; }
+			.location span.HI_Location {
+				cursor: pointer;
+				position: absolute; left: 0; top: 0;
+				width: 98%; height: 100%; padding: 10px; }
+		.userLocSelection { border-top: 1px solid #AF5992; padding: 10px 0 0; }
+		.userLocSelection .wrap { width: auto; }
+		.userLocSelection .location { border: 0; background: none; width: auto; height: auto; margin: 0; padding: 0; color: #FFF; }
+			.userLocSelection h2 { font-weight: bold; font-size: 18px; color: #FFF; }
+			.userLocSelection .location h3 { color: #FFF; margin: 0; }
+			.userLocSelection .location .phone { color: #FFF; }
+			.userLocSelection .location span.HI_Location {
+				cursor: default; display: block !important;
+				position: relative;
+				width: auto; height: auto; }
+			.userLocSelection .location span.HI_Location span.select { display: none; }
