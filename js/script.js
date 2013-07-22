@@ -742,7 +742,6 @@ this.mods[a]&&this.mods[a].init();return this}};return function(){var a=Object.c
 					"<h3>{{franchiseName}}</h3>",
 					"<p><span>{{address1}}</span> <br />",
 					"<span>{{city}}, {{state}} {{zip}}</span> <br />",
-					"<span class='phone'>{{phone}}</span></p>",
 					"<p><span class='select'>Select This Location</span></p>",
 				"</span></div></div>"
 			].join(""),
